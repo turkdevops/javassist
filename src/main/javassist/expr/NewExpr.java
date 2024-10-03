@@ -193,6 +193,14 @@ public class NewExpr extends Expr {
          */
         int codeSize = canReplace();
         int end = pos + codeSize;
+        //check isStoreBeforeInit ,such as :  new xx/xx ; dup;[astoreN];invokespecial xx/xx;
+        int beforeStoreOp = 0;
+        int preOp = iterator.byteAt(currentPos - 1);
+        if (iterator.byteAt(newPos + 3) == Opcode.DUP
+                && (preOp >= Opcode.ASTORE_0
+                && preOp <= Opcode.ASTORE_3) && currentPos - newPos == 5) {
+            beforeStoreOp = preOp;
+        }
         for (int i = pos; i < end; ++i)
             iterator.writeByte(NOP, i);
 
@@ -230,7 +238,12 @@ public class NewExpr extends Expr {
             if (codeSize > 3)   // if the original code includes DUP.
                 bytecode.addAload(retVar);
 
-            replace0(pos, bytecode, bytecodeSize);
+            if (beforeStoreOp >= Opcode.ASTORE_0) {
+                bytecode.addOpcode(beforeStoreOp);
+                replace0(pos - 1, bytecode, bytecodeSize + 1);
+            } else {
+                replace0(pos, bytecode, bytecodeSize);
+            }
         }
         catch (CompileError e) { throw new CannotCompileException(e); }
         catch (NotFoundException e) { throw new CannotCompileException(e); }
@@ -250,7 +263,7 @@ public class NewExpr extends Expr {
         }
 
         @Override
-        public void doit(JvstCodeGen gen, Bytecode bytecode, ASTList args)
+        public void doit(JvstCodeGen gen, Bytecode bytecode, ASTList args, int lineNumber)
             throws CompileError
         {
             bytecode.addOpcode(NEW);
@@ -258,15 +271,15 @@ public class NewExpr extends Expr {
             bytecode.addOpcode(DUP);
             gen.atMethodCallCore(newType, MethodInfo.nameInit, args,
                                  false, true, -1, null);
-            gen.setType(newType);
+            gen.setType(newType, lineNumber);
         }
 
         @Override
-        public void setReturnType(JvstTypeChecker c, ASTList args)
+        public void setReturnType(JvstTypeChecker c, ASTList args, int lineNumber)
             throws CompileError
         {
-            c.atMethodCallCore(newType, MethodInfo.nameInit, args);
-            c.setType(newType);
+            c.atMethodCallCore(newType, MethodInfo.nameInit, args, lineNumber);
+            c.setType(newType, lineNumber);
         }
     }
 }

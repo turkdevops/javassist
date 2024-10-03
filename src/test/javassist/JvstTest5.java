@@ -1,6 +1,10 @@
 package javassist;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.lang.reflect.TypeVariable;
 
 import javassist.bytecode.AccessFlag;
@@ -9,6 +13,8 @@ import javassist.bytecode.AttributeInfo;
 import javassist.bytecode.ClassFile;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.InnerClassesAttribute;
+import javassist.bytecode.MethodInfo;
+import javassist.bytecode.MethodParametersAttribute;
 import javassist.bytecode.NestHostAttribute;
 import javassist.bytecode.NestMembersAttribute;
 import javassist.expr.ExprEditor;
@@ -19,9 +25,6 @@ import junit.framework.Assert;
 
 @SuppressWarnings({"rawtypes","unchecked","unused"})
 public class JvstTest5 extends JvstTestRoot {
-    public JvstTest5(String name) {
-        super(name);
-    }
 
     public void testDollarClassInStaticMethod() throws Exception {
         CtClass cc = sloader.makeClass("test5.DollarClass");
@@ -161,7 +164,7 @@ public class JvstTest5 extends JvstTestRoot {
         CtClass cc = sloader.makeClass("test5.JIRA256");
         ClassFile ccFile = cc.getClassFile();
         ConstPool constpool = ccFile.getConstPool();
-         
+
         AnnotationsAttribute attr = new AnnotationsAttribute(constpool, AnnotationsAttribute.visibleTag);
         javassist.bytecode.annotation.Annotation entityAnno
             = new javassist.bytecode.annotation.Annotation("test5.Entity", constpool);
@@ -176,7 +179,7 @@ public class JvstTest5 extends JvstTestRoot {
         assertTrue(o.getClass().getName().equals("test5.JIRA256"));
 
         java.lang.annotation.Annotation[] annotations = o.getClass().getDeclaredAnnotations();
-        assertEquals(1, annotations.length); 
+        assertEquals(1, annotations.length);
     }
 
     public void testJIRA250() throws Exception {
@@ -592,5 +595,76 @@ public class JvstTest5 extends JvstTestRoot {
             fail("too many items were accepted");
         }
         catch (CannotCompileException e) {}
+    }
+
+    public void testGithubIssue462Java21WithoutParameters() throws IOException {
+
+        //This is a class file compiled by Java-21
+        //javac Java21InnerClassWithoutParameters.java
+        //public class Java21InnerClassWithoutParameters {
+        //    class InnerClass implements Runnable {
+        //        public void run() {
+        //        }
+        //    }
+        //}
+        String classFileName = "./Java21InnerClassWithoutParameters$InnerClass.class";
+        ClassLoader classLoader = getClass().getClassLoader();
+        File classFile = new File(classLoader.getResource(classFileName).getFile());
+        
+        CtClass cc = sloader.makeClass(new FileInputStream(classFile));
+        cc.getClassFile().compact();
+
+        ClassFile cf = cc.getClassFile2();
+        ConstPool cp = cf.getConstPool();
+        
+        MethodInfo minfo = cf.getMethod("<init>");
+        MethodParametersAttribute attr
+                = (MethodParametersAttribute)minfo.getAttribute(MethodParametersAttribute.tag);
+        assertEquals(1, attr.size());
+        assertNull(attr.parameterName(0));
+    }
+
+    public void testSuperCall() throws Exception {
+        String javacResult = new BearKeeper().javacResult();
+        assertEquals("Man feed(Bear)", javacResult);
+
+        CtClass cc = sloader.get("javassist.BearKeeper");
+        CtMethod cm = CtMethod.make(
+                "public String javassistResult() {return super.feed(new javassist.Bear());}",
+                cc);
+        cc.addMethod(cm);
+        cc.setModifiers(Modifier.PUBLIC);
+        cc.writeFile();
+        Object obj = make(cc.getName());
+        Method m = obj.getClass().getMethod("javassistResult");
+        Object javassistResult = m.invoke(obj);
+
+        //before this fix
+        //expected:<Man feed(Bear)> but was:<Keeper feed(Animal)>
+        assertEquals(javacResult, javassistResult);
+    }
+
+    public void testMultipleNestedClasses() throws Exception {
+        CtClass outer = sloader.makeClass("javassist.MultipleNestedClasses");
+        CtClass nested1 = outer.makeNestedClass("Nested1", true);
+        CtClass nested2 = outer.makeNestedClass("Nested2", true);
+
+        InnerClassesAttribute outerICA = (InnerClassesAttribute)
+                outer.getClassFile2().getAttribute(InnerClassesAttribute.tag);
+        assertEquals(2, outerICA.tableLength());
+        assertEquals("javassist.MultipleNestedClasses$Nested1", outerICA.innerClass(0));
+        assertEquals("javassist.MultipleNestedClasses$Nested2", outerICA.innerClass(1));
+
+        InnerClassesAttribute nested1ICA = (InnerClassesAttribute)
+                nested1.getClassFile2().getAttribute(InnerClassesAttribute.tag);
+        assertEquals(1, nested1ICA.tableLength());
+        assertEquals("javassist.MultipleNestedClasses", nested1ICA.outerClass(0));
+        assertEquals("javassist.MultipleNestedClasses$Nested1", nested1ICA.innerClass(0));
+
+        InnerClassesAttribute nested2ICA = (InnerClassesAttribute)
+                nested2.getClassFile2().getAttribute(InnerClassesAttribute.tag);
+        assertEquals(1, nested2ICA.tableLength());
+        assertEquals("javassist.MultipleNestedClasses", nested2ICA.outerClass(0));
+        assertEquals("javassist.MultipleNestedClasses$Nested2", nested2ICA.innerClass(0));
     }
 }
