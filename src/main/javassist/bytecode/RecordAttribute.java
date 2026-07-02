@@ -45,7 +45,13 @@ public class RecordAttribute extends AttributeInfo {
 	            pos += 2;
 	            int attrLength = ByteArray.read32bit(info, pos);
 	            pos += 4;
-	            byte[] attrInfo = new byte[attrLength];
+	            byte[] attrInfo;
+                    try {
+                        attrInfo = new byte[attrLength];
+                    }
+                    catch (Throwable e) {
+                        throw new IOException("bad attribute_length: " + attrLength);
+                    }
 	            System.arraycopy(info, pos, attrInfo, 0, attrLength);
 	            pos += attrLength;
 

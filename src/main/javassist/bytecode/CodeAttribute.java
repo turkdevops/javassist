@@ -106,6 +106,9 @@ public class CodeAttribute extends AttributeInfo implements Opcode {
         maxLocals = in.readUnsignedShort();
 
         int code_len = in.readInt();
+        if (code_len <= 0 || 0xffff < code_len)     // JVM specification 4.7.3
+            throw new IOException("bad code attribute length: " + code_len);
+
         info = new byte[code_len];
         in.readFully(info);
 
