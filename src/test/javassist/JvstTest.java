@@ -836,12 +836,18 @@ public class JvstTest extends JvstTestRoot {
     }
 
     static final long svUID = 6006955401253799668L;
+    static final long svUIDStaticInner = -5933347829989567997L;
 
     public void testSerialVUID() throws Exception {
         CtClass cc = sloader.get("test1.MySerializableClass");
         assertEquals(svUID, SerialVersionUID.calculateDefault(cc));
         SerialVersionUID.setSerialVersionUID(cc);
         cc.writeFile();
+    }
+
+    public void testSerialVUIDStaticInner() throws Exception {
+        CtClass cc = sloader.get("test1.SerialVUIDOuter$Inner");
+        assertEquals(svUIDStaticInner, SerialVersionUID.calculateDefault(cc));
     }
 
     public void testInvokeInt() throws Exception {
