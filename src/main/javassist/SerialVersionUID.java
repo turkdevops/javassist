@@ -93,7 +93,9 @@ public class SerialVersionUID {
             CtMethod[] methods = clazz.getDeclaredMethods();
 
             // class modifiers.
-            int classMods = clazz.getModifiers();
+            int classMods = clazz.getModifiers()
+                           & (Modifier.PUBLIC | Modifier.FINAL
+                              | Modifier.INTERFACE | Modifier.ABSTRACT);
             if ((classMods & Modifier.INTERFACE) != 0)
                 if (methods.length > 0)
                     classMods = classMods | Modifier.ABSTRACT;
