@@ -67,13 +67,37 @@ public class AttributeInfo {
         constPool = cp;
         name = n;
         int len = in.readInt();
-        try {
-            info = new byte[len];
-        } catch (Throwable e) {
-            throw new IOException("Error reading attribute info for " + n + " with size " + len, e);
-        }
+        info = allocateBytes(len);
         if (len > 0)
             in.readFully(info);
+    }
+
+    private static volatile int maxAttributeLength = 0x7FFFFFFD;
+
+    /**
+     * Sets the maximum length of an attribute.
+     * The default value is 0x7FFFFFFD.
+     * The value must be greater than or equal to 0xFFFF.
+     *
+     * @param n
+     * @since 3.33.0
+     */
+    public static void setMaxAttributeLength(int n) {
+        if (n < 0xffff)
+            throw new IllegalArgumentException("invalid limit: " + n);
+        else
+            maxAttributeLength = n;
+    }
+
+    protected static byte[] allocateBytes(int len) throws IOException {
+        if (len < 0 || len > maxAttributeLength)
+            throw new IOException("Bad attribute length: " + len);
+
+        try {
+            return new byte[len];
+        } catch (Throwable e) {
+            throw new IOException("fail to allocate a byte array: " + len, e);
+        }
     }
 
     static AttributeInfo read(ConstPool cp, DataInputStream in)

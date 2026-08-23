@@ -857,6 +857,56 @@ public class BytecodeTest extends TestCase {
         assertEquals("hello", destObj.getClass().getMethod("getString").invoke(destObj));
     }
 
+    public void testLargeAttributeInfo() throws Exception {
+        int attrLen = 0x7fffffff;
+        try {
+            new ClassFile(buildBrokenClassfile(attrLen));
+            fail("Attribute length " + attrLen + " should throw an exception");
+        }
+        catch (IOException e) {
+            assertEquals("Bad attribute length: " + attrLen, e.getMessage());
+        }
+
+        try {
+            AttributeInfo.setMaxAttributeLength(0xfffe);
+        }
+        catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().startsWith("invalid limit:"));
+        }
+
+        AttributeInfo.setMaxAttributeLength(0x7FFFFFFF);
+        try {
+            new ClassFile(buildBrokenClassfile(attrLen));
+            fail("Attribute length " + attrLen + " should throw an exception");
+        }
+        catch (IOException e) {
+            assertTrue(e.getMessage().startsWith("fail to allocate a byte array"));
+        }
+    }
+
+    static DataInputStream buildBrokenClassfile(int attrLen) throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        dos.writeInt(0xCAFEBABE);
+        dos.writeShort(0);
+        dos.writeShort(52);
+        dos.writeShort(6);
+        dos.writeByte(1); dos.writeUTF("TestClass");
+        dos.writeByte(7); dos.writeShort(1);
+        dos.writeByte(1); dos.writeUTF("java/lang/Object");
+        dos.writeByte(7); dos.writeShort(3);
+        dos.writeByte(1); dos.writeUTF("EvilAttr");
+        dos.writeShort(0x0001);
+        dos.writeShort(2);
+        dos.writeShort(4);
+        dos.writeShort(0); dos.writeShort(0); dos.writeShort(0);
+        dos.writeShort(1);
+        dos.writeShort(5);
+        dos.writeInt(attrLen);
+        dos.flush();
+        return new DataInputStream(new ByteArrayInputStream(baos.toByteArray()));
+    }
+
     public static Test suite() {
         TestSuite suite = new TestSuite("Bytecode Tests");
         suite.addTestSuite(BytecodeTest.class);

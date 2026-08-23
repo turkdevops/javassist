@@ -1,6 +1,14 @@
 ### Changes
 
+### version 3.33
+
+* API changes suggested by `@waydeshi` and `@lucianjohnhouse`
+
+* GitHub PR #523
+
 ### version 3.32 on June 21, 2026
+
+* API change suggested by Wayde Shi (GitHub: `@waydeshi`).
 
 * Excludes javassist.tools.{reflect,rmi,web}.  They are now included in ./examples/src/main.
 
