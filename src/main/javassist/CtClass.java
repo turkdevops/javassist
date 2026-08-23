@@ -69,7 +69,7 @@ public abstract class CtClass {
     /**
      * The version number of this release.
      */
-    public static final String version = "3.32.0-GA";
+    public static final String version = "3.33.0-GA";
 
     private int linesCount = 0;
 
