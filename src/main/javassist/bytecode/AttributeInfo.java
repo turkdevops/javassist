@@ -79,7 +79,7 @@ public class AttributeInfo {
      * The default value is 0x7FFFFFFD.
      * The value must be greater than or equal to 0xFFFF.
      *
-     * @param n
+     * @param n     the maximum length.
      * @since 3.33.0
      */
     public static void setMaxAttributeLength(int n) {
