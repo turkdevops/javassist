@@ -1,5 +1,9 @@
 ### Changes
 
+### version 3.34
+
+* GitHub PR #524 (Issue #443)
+
 ### version 3.33 on August 23, 2026
 
 * API changes suggested by `@waydeshi` and `@lucianjohnhouse`
