@@ -23,10 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.security.ProtectionDomain;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.*;
 
 import javassist.bytecode.ClassFile;
 import javassist.bytecode.Descriptor;
@@ -842,7 +839,7 @@ public class ClassPool {
 
     /**
      * Creates a new public nested class.
-     * This method is called by {@link CtClassType#makeNestedClass()}.
+     * This method is called by {@link CtClassType#makeNestedClass(String, boolean)}.
      *
      * @param classname     a fully-qualified class name.
      * @return      the nested class.
@@ -1236,6 +1233,9 @@ public class ClassPool {
                          ProtectionDomain domain)
             throws CannotCompileException
     {
+        if (neighbor == null)
+            neighbor = findNeighborInSamePackage(ct, loader);
+
         try {
             return javassist.util.proxy.DefineClassHelper.toClass(ct.getName(),
                     neighbor, loader, domain, ct.toBytecode());
@@ -1243,6 +1243,47 @@ public class ClassPool {
         catch (IOException e) {
             throw new CannotCompileException(e);
         }
+    }
+
+    /**
+     * Attempts to find an already loadable class in the same package as
+     * {@code ct} and the same class loader, so that {@code toClass()} can use
+     * {@code java.lang.invoke.MethodHandles.Lookup} instead of falling back
+     * to a reflective call to {@code ClassLoader#defineClass}, which triggers
+     * an illegal-access warning on Java 9 and later.
+     *
+     * <p>{@code MethodHandles.Lookup#defineClass} requires the neighbor to be
+     * in the same runtime package (same class loader, same package name) as
+     * the class being defined, so this only returns a candidate when that
+     * condition can be verified; otherwise it returns {@code null} and the
+     * caller falls back to the existing behavior.</p>
+     */
+    private static Class<?> findNeighborInSamePackage(CtClass ct, ClassLoader loader) {
+        String pkg = ct.getPackageName();
+
+        try {
+            CtClass superclass = ct.getSuperclass();
+            if (superclass != null && samePackage(pkg, superclass.getPackageName()))
+                return Class.forName(superclass.getName(), false, loader);
+        }
+        catch (NotFoundException | ClassNotFoundException | LinkageError e) {
+            // fall through and try interfaces, or give up
+        }
+
+        try {
+            for (CtClass itf : ct.getInterfaces())
+                if (samePackage(pkg, itf.getPackageName()))
+                    return Class.forName(itf.getName(), false, loader);
+        }
+        catch (NotFoundException | ClassNotFoundException | LinkageError e) {
+            // give up; caller falls back to the reflective defineClass path
+        }
+
+        return null;
+    }
+
+    private static boolean samePackage(String pkg1, String pkg2) {
+        return Objects.equals(pkg1, pkg2);
     }
 
     /**
